@@ -1,0 +1,6 @@
+{
+  "id": "bluemap-mekanism",
+  "entrypoint": "io.github.janguenter.bluemap.mekanism.BlueMapMekanismAddon",
+  "dependencies": [],
+  "soft-dependencies": []
+}

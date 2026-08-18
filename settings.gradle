@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MIT
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'bluemap-mekanism-addon'
+
+def blueMapSource = file(providers.gradleProperty('bluemapSourcePath')
+        .getOrElse('../bluemap-backport'))
+if (!blueMapSource.isDirectory()) {
+    throw new GradleException("BlueMap source checkout not found at ${blueMapSource}")
+}
+
+includeBuild(blueMapSource) {
+    dependencySubstitution {
+        substitute module('de.bluecolored:bluemap-core') using project(':core')
+    }
+}

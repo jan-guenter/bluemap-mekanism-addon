@@ -1,0 +1,18 @@
+{
+  "mekanism": {
+    "version": "1.21.1-10.7.19.85",
+    "sha256": "004dbc9f3106f4d192aeaa1ee1190dd16ec9ca8059ed3d093b80034f4c574f43",
+    "sourceTag": "v1.21.1-10.7.19.85",
+    "sourceCommit": "a00109e4856fd38b9c5b3dd7f22ce4a59cd65a80",
+    "lane": "resource-interpreter"
+  },
+  "mekanismgenerators": {
+    "sha256": "0e5783b111e756f27b48c62b2f0e02fff750c77f7985ff809bfadc5f444ba4ac"
+  },
+  "mekanismcovers": {
+    "sha256": "7e67b8f5c111ef0d94abcd0c24580fa74c0532dbfa9e5cdbf58521e57cbbdc95"
+  },
+  "mekmm": {
+    "sha256": "aebd1136a2e328a23d1801c768b387cf336bc1ebdab40770274d068bdaac9a12"
+  }
+}

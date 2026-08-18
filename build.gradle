@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: MIT
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = addon_group
+version = addon_version
+
+base {
+    archivesName = artifact_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri('https://repo.bluecolored.de/releases')
+        content { includeGroupByRegex('de\\.bluecolored.*') }
+    }
+}
+
+dependencies {
+    compileOnly "de.bluecolored:bluemap-core:${bluemap_version}"
+    compileOnly 'com.google.code.gson:gson:2.11.0'
+    compileOnly 'org.jetbrains:annotations:23.0.0'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs.addAll(['-Xlint:all', '-Werror'])
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes(
+                'Automatic-Module-Name': 'io.github.janguenter.bluemap.mekanism',
+                'Implementation-Title': addon_name,
+                'Implementation-Version': project.version.toString()
+        )
+    }
+    from('LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-bluemap-mekanism-addon' }
+    }
+}
+
+tasks.register('galleryZip', Zip) {
+    archiveFileName = 'bluemap-mekanism-gallery.zip'
+    destinationDirectory = layout.buildDirectory.dir('gallery')
+    from('gallery/datapack')
+}
+
+tasks.named('build').configure { dependsOn tasks.named('galleryZip') }
+
+def productionJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
+tasks.register('verifyAcceptedProductionJar') {
+    dependsOn tasks.named('jar')
+    inputs.file(productionJar)
+
+    doLast {
+        def jarFile = inputs.files.singleFile
+        def expectedSize = providers.gradleProperty('accepted_jar_size').get().toLong()
+        def expectedSha256 = providers.gradleProperty('accepted_jar_sha256').get()
+        def actualSha256 = java.security.MessageDigest.getInstance('SHA-256')
+                .digest(jarFile.bytes)
+                .encodeHex()
+                .toString()
+
+        if (jarFile.length() != expectedSize) {
+            throw new GradleException(
+                    "Accepted production JAR size mismatch: "
+                            + "${jarFile.length()} != ${expectedSize}"
+            )
+        }
+        if (actualSha256 != expectedSha256) {
+            throw new GradleException(
+                    "Accepted production JAR SHA-256 mismatch: "
+                            + "${actualSha256} != ${expectedSha256}"
+            )
+        }
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('verifyAcceptedProductionJar')
+}
+
+publishing {
+    publications {
+        addon(MavenPublication) {
+            from components.java
+            artifactId = artifact_id
+            pom {
+                name = addon_name
+                description = 'Exact-profile BlueMap rendering for stable Mekanism-family appearance.'
+                url = 'https://github.com/jan-guenter/bluemap-mekanism-addon'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://spdx.org/licenses/MIT.html'
+                        distribution = 'repo'
+                    }
+                }
+                scm {
+                    url = 'https://github.com/jan-guenter/bluemap-mekanism-addon'
+                    connection = 'scm:git:https://github.com/jan-guenter/bluemap-mekanism-addon.git'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/jan-guenter/bluemap-mekanism-addon')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR')
+                password = System.getenv('GITHUB_TOKEN')
+            }
+        }
+    }
+}
