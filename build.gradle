@@ -2,6 +2,7 @@
 
 plugins {
     id 'java-library'
+    id 'checkstyle'
     id 'maven-publish'
 }
 
@@ -40,6 +41,20 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(AbstractArchiveTask).configureEach {
     preserveFileTimestamps = false
     reproducibleFileOrder = true
+}
+
+
+
+checkstyle {
+    toolVersion = '10.18.2'
+    configFile = file('config/checkstyle/checkstyle.xml')
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 tasks.named('jar', Jar).configure {
