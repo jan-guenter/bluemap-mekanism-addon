@@ -19,9 +19,18 @@ Supported exact artifacts:
 - Mekanism Covers `1.3-BETA+1.21`
 - Mekanism: MoreMachine `1.21.1-1.3.3`
 
-Build with `gradle --no-daemon clean build` on Java 21. The production JAR is
-written to `build/libs/`; the compact review datapack is written to
-`build/gallery/bluemap-mekanism-gallery.zip`.
+Clone with submodules so the exact reviewed build convention is available:
+
+```bash
+git clone --recurse-submodules \
+  https://github.com/jan-guenter/bluemap-mekanism-addon.git
+```
+
+For an existing checkout, run `git submodule update --init --recursive`. The
+build rejects an uninitialized, dirty, or incorrectly pinned toolkit
+submodule. Build with `gradle --no-daemon clean build` on Java 21. The
+production JAR is written to `build/libs/`; the compact review datapack is
+written to `build/gallery/bluemap-mekanism-gallery.zip`.
 
 ## Installation
 
