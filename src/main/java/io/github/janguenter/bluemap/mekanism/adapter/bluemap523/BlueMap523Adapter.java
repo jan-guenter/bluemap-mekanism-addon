@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-package io.github.janguenter.bluemap.mekanism.adapter.bluemap522;
+package io.github.janguenter.bluemap.mekanism.adapter.bluemap523;
 
 import de.bluecolored.bluemap.core.map.TextureGallery;
 import de.bluecolored.bluemap.core.map.hires.RenderSettings;
@@ -7,49 +7,57 @@ import de.bluecolored.bluemap.core.map.hires.block.BlockRenderer;
 import de.bluecolored.bluemap.core.map.hires.block.BlockRendererType;
 import de.bluecolored.bluemap.core.resources.pack.resourcepack.ResourcePack;
 import de.bluecolored.bluemap.core.util.Key;
-import de.bluecolored.bluemap.core.util.Keyed;
-import de.bluecolored.bluemap.core.util.Registry;
 import de.bluecolored.bluemap.core.world.mca.blockentity.BlockEntityType;
+import io.github.janguenter.bluemap.addon.adapter.api.bluemap523.RegistryGuard;
+import io.github.janguenter.bluemap.addon.adapter.api.bluemap523.ResourceExtensionType;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** BlueMap 5.22 internal ABI registration boundary. */
-public final class BlueMap522Adapter {
+/** BlueMap 5.23 feature-backport registration boundary. */
+public final class BlueMap523Adapter {
 
     private static final MekanismRuntime RUNTIME = MekanismRuntime.INSTANCE;
     private static final BlockRendererType RENDERER = new BlockRendererType.Impl(
-            Key.parse("bluemap_mekanism:transmitter"), BlueMap522Adapter::createRenderer
+            Key.parse("bluemap_mekanism:transmitter"), BlueMap523Adapter::createRenderer
     );
+    private static final Key EXTENSION_KEY = Key.parse("bluemap_mekanism:prototype");
     private static final ResourcePack.Extension<MekanismResourceExtension> EXTENSION =
-            new MekanismResourceExtensionType(RENDERER, RUNTIME);
+            new ResourceExtensionType<>(
+                    EXTENSION_KEY,
+                    pack -> new MekanismResourceExtension(pack, RENDERER, RUNTIME)
+            );
     private static final List<BlockEntityType> BLOCK_ENTITIES = createBlockEntityTypes();
 
-    private BlueMap522Adapter() {
+    private BlueMap523Adapter() {
     }
 
     public static synchronized boolean install() {
-        if (!canRegister(BlockRendererType.REGISTRY, RENDERER)
-                || !canRegister(ResourcePack.Extension.REGISTRY, EXTENSION)) {
+        if (!RegistryGuard.canRegister(BlockRendererType.REGISTRY, RENDERER)
+                || !RegistryGuard.canRegister(ResourcePack.Extension.REGISTRY, EXTENSION)) {
             RUNTIME.inactive("registry-collision");
             return false;
         }
         for (BlockEntityType type : BLOCK_ENTITIES) {
-            if (!canRegister(BlockEntityType.REGISTRY, type)) {
+            if (!RegistryGuard.canRegister(BlockEntityType.REGISTRY, type)) {
                 RUNTIME.inactive("block-entity-registry-collision");
                 return false;
             }
         }
-        if (!register(BlockRendererType.REGISTRY, RENDERER)
-                || !register(ResourcePack.Extension.REGISTRY, EXTENSION)) {
+        if (!RegistryGuard.register(BlockRendererType.REGISTRY, RENDERER)
+                || !RegistryGuard.register(ResourcePack.Extension.REGISTRY, EXTENSION)) {
             return false;
         }
         for (BlockEntityType type : BLOCK_ENTITIES) {
-            if (!register(BlockEntityType.REGISTRY, type)) {
+            if (!RegistryGuard.register(BlockEntityType.REGISTRY, type)) {
                 return false;
             }
         }
         return true;
+    }
+
+    static ResourcePack.Extension<MekanismResourceExtension> extension() {
+        return EXTENSION;
     }
 
     private static BlockRenderer createRenderer(
@@ -78,19 +86,5 @@ public final class BlueMap522Adapter {
             result.add(new BlockEntityType.Impl(Key.parse(id), EnergyCubeBlockEntityData.class));
         }
         return List.copyOf(result);
-    }
-
-    private static <T extends Keyed> boolean canRegister(Registry<T> registry, T candidate) {
-        T existing = registry.get(candidate.getKey());
-        return existing == null || existing == candidate;
-    }
-
-    private static <T extends Keyed> boolean register(Registry<T> registry, T candidate) {
-        T existing = registry.get(candidate.getKey());
-        if (existing == null) {
-            registry.register(candidate);
-            existing = registry.get(candidate.getKey());
-        }
-        return existing == candidate;
     }
 }
