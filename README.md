@@ -7,9 +7,9 @@ family appearance missing from BlueMap in All the Mons 1.2.0.
 
 ## Status and compatibility
 
-Version `0.1.0-alpha.2` is an unpublished migration candidate for this exact
-environment. It preserves the owner-accepted `0.1.0-alpha.1` rendering scope.
-Compatibility outside these inputs is not asserted.
+Version `0.1.0-alpha.2` is the owner-accepted migration release candidate for
+this exact environment. It preserves the owner-accepted `0.1.0-alpha.1`
+rendering scope. Compatibility outside these inputs is not asserted.
 
 ## Visual scope
 

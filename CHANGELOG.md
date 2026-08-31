@@ -10,6 +10,7 @@
   duplicate runtime, registry, and resource-extension helpers.
 - Preserve all accepted composite model, transmitter, cover, Energy Cube,
   connected-glass, stock-fallback, and gallery behavior.
+- Pass the 51-add-on aggregate runtime suite and owner visual review.
 
 ## 0.1.0-alpha.1 - 2026-08-25
 
