@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PROMOTION_JAVA_VERSION: '21.0.12+8.0.LTS'
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -28,29 +31,91 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: jan-guenter/BlueMap
-          ref: 9be321df995a1103808621d529eb72773e719d4d
+          ref: 7e07f4e74ec1e92a6ead9aa1e66054af3e133aac
           path: .ci/bluemap
           submodules: recursive
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Java 21
+      - name: Verify exact detached BlueMap identities
+        run: |
+          test "$(git -C .ci/bluemap rev-parse --abbrev-ref HEAD)" = "HEAD"
+          test "$(git -C .ci/bluemap rev-parse HEAD)" = \
+            "7e07f4e74ec1e92a6ead9aa1e66054af3e133aac"
+          test "$(git -C .ci/bluemap/api rev-parse HEAD)" = \
+            "285c9a60eff3ac2b0cab308ce1058d1565be0971"
+
+      - name: Set up exact promotion Java 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: ${{ env.PROMOTION_JAVA_VERSION }}
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Install exact BlueMap add-on toolkit
+        run: |
+          python -m pip install --disable-pip-version-check \
+            --no-deps --require-hashes --only-binary=:all: \
+            --requirement requirements/toolkit.txt
+          toolkit_version="$(sed -n \
+            's#^bluemap-addon-toolkit @ .*/releases/download/v\([^/]*\)/.*#\1#p' \
+            requirements/toolkit.txt)"
+          [[ "${toolkit_version}" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]]
+          test "$(bluemap-addon-toolkit --version)" = "${toolkit_version}"
 
       - name: Set up Gradle 9.6.1
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
           gradle-version: '9.6.1'
+          cache-provider: basic
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+          validate-wrappers: true
 
-      - name: Validate provenance and accepted artifact
+      - name: Acquire exact ephemeral Mekanism inputs
         run: |
-          python3 -m json.tool provenance/upstreams.json >/dev/null
+          input_dir="${RUNNER_TEMP}/exact-inputs"
+          mkdir -p "${input_dir}"
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output "${input_dir}/Mekanism-1.21.1-10.7.19.85.jar" \
+            "https://www.curseforge.com/api/v1/mods/268560/files/7904058/download"
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output "${input_dir}/MekanismGenerators-1.21.1-10.7.19.85.jar" \
+            "https://www.curseforge.com/api/v1/mods/268566/files/7904061/download"
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output "${input_dir}/mekanismcovers-1.3-BETA+1.21.jar" \
+            "https://www.curseforge.com/api/v1/mods/1119874/files/6071684/download"
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output "${input_dir}/mekmm-1.21.1-1.3.3.jar" \
+            "https://www.curseforge.com/api/v1/mods/1275257/files/7919872/download"
+          test "$(stat -c %s "${input_dir}/Mekanism-1.21.1-10.7.19.85.jar")" \
+            -eq 11976009
+          test "$(stat -c %s "${input_dir}/MekanismGenerators-1.21.1-10.7.19.85.jar")" \
+            -eq 1114598
+          test "$(stat -c %s "${input_dir}/mekanismcovers-1.3-BETA+1.21.jar")" \
+            -eq 136513
+          test "$(stat -c %s "${input_dir}/mekmm-1.21.1-1.3.3.jar")" \
+            -eq 2983024
+          sha256sum --check <<SHA256SUMS
+          004dbc9f3106f4d192aeaa1ee1190dd16ec9ca8059ed3d093b80034f4c574f43  ${input_dir}/Mekanism-1.21.1-10.7.19.85.jar
+          0e5783b111e756f27b48c62b2f0e02fff750c77f7985ff809bfadc5f444ba4ac  ${input_dir}/MekanismGenerators-1.21.1-10.7.19.85.jar
+          7e67b8f5c111ef0d94abcd0c24580fa74c0532dbfa9e5cdbf58521e57cbbdc95  ${input_dir}/mekanismcovers-1.3-BETA+1.21.jar
+          aebd1136a2e328a23d1801c768b387cf336bc1ebdab40770274d068bdaac9a12  ${input_dir}/mekmm-1.21.1-1.3.3.jar
+          SHA256SUMS
+
+      - name: Verify exact migration candidate
+        run: |
+          input_dir="${RUNNER_TEMP}/exact-inputs"
           gradle --no-daemon \
             -PbluemapSourcePath=.ci/bluemap \
-            clean check build generatePomFileForAddonPublication \
+            -PmekanismJar="${input_dir}/Mekanism-1.21.1-10.7.19.85.jar" \
+            -PmekanismGeneratorsJar="${input_dir}/MekanismGenerators-1.21.1-10.7.19.85.jar" \
+            -PmekanismCoversJar="${input_dir}/mekanismcovers-1.3-BETA+1.21.jar" \
+            -PmoreMachineJar="${input_dir}/mekmm-1.21.1-1.3.3.jar" \
+            clean prototypeCheck build generatePomFileForAddonPublication \
             generateMetadataFileForAddonPublication
 
       - name: Upload review outputs

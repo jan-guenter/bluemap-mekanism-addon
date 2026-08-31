@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-package io.github.janguenter.bluemap.mekanism.adapter.bluemap522;
+package io.github.janguenter.bluemap.mekanism.adapter.bluemap523;
 
 import java.util.LinkedHashSet;
 import java.util.Set;

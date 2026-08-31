@@ -14,6 +14,10 @@ base {
     archivesName = artifact_id
 }
 
+sourceSets {
+    main.java.srcDir 'modules/bluemap-addon-adapter-api/src/main/java'
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -26,9 +30,61 @@ dependencies {
     compileOnly "de.bluecolored:bluemap-core:${bluemap_version}"
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'org.jetbrains:annotations:23.0.0'
+    testImplementation "de.bluecolored:bluemap-core:${bluemap_version}"
+    testImplementation 'com.google.code.gson:gson:2.11.0'
+    testImplementation 'org.jetbrains:annotations:23.0.0'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.debug = true
+    options.debugOptions.debugLevel = 'source,lines'
+}
+
+tasks.withType(Zip).configureEach {
+    entryCompression = ZipEntryCompression.STORED
+}
+
+def artifactPins = [
+        [
+                key: 'mekanism',
+                property: 'mekanismJar',
+                size: 11976009L,
+                sha256: '004dbc9f3106f4d192aeaa1ee1190dd16ec9ca8059ed3d093b80034f4c574f43'
+        ],
+        [
+                key: 'mekanismGenerators',
+                property: 'mekanismGeneratorsJar',
+                size: 1114598L,
+                sha256: '0e5783b111e756f27b48c62b2f0e02fff750c77f7985ff809bfadc5f444ba4ac'
+        ],
+        [
+                key: 'mekanismCovers',
+                property: 'mekanismCoversJar',
+                size: 136513L,
+                sha256: '7e67b8f5c111ef0d94abcd0c24580fa74c0532dbfa9e5cdbf58521e57cbbdc95'
+        ],
+        [
+                key: 'moreMachine',
+                property: 'moreMachineJar',
+                size: 2983024L,
+                sha256: 'aebd1136a2e328a23d1801c768b387cf336bc1ebdab40770274d068bdaac9a12'
+        ]
+]
+
+tasks.named('test', Test).configure {
+    artifactPins.each { pin ->
+        def exactJar = providers.gradleProperty(pin.property)
+        if (exactJar.isPresent()) {
+            systemProperty pin.property, exactJar.get()
+        }
+    }
 }
 
 tasks.named('jar', Jar).configure {
+    includeEmptyDirs = false
     manifest {
         attributes(
                 'Automatic-Module-Name': 'io.github.janguenter.bluemap.mekanism',
@@ -40,6 +96,32 @@ tasks.named('jar', Jar).configure {
         into 'META-INF'
         rename { 'LICENSE-bluemap-mekanism-addon' }
     }
+    from('NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-bluemap-mekanism-addon.md' }
+    }
+    from('THIRD_PARTY.md') {
+        into 'META-INF'
+        rename { 'THIRD_PARTY-bluemap-mekanism-addon.md' }
+    }
+    from('provenance/upstreams.json') { into 'META-INF/bluemap-mekanism' }
+}
+
+tasks.named('sourcesJar', Jar).configure {
+    includeEmptyDirs = false
+    from('LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-bluemap-mekanism-addon' }
+    }
+    from('NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-bluemap-mekanism-addon.md' }
+    }
+    from('THIRD_PARTY.md') {
+        into 'META-INF'
+        rename { 'THIRD_PARTY-bluemap-mekanism-addon.md' }
+    }
+    from('provenance/upstreams.json') { into 'META-INF/bluemap-mekanism' }
 }
 
 tasks.register('galleryZip', Zip) {
@@ -51,36 +133,273 @@ tasks.register('galleryZip', Zip) {
 tasks.named('build').configure { dependsOn tasks.named('galleryZip') }
 
 def productionJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
-tasks.register('verifyAcceptedProductionJar') {
+def publishedSourcesJar = tasks.named('sourcesJar', Jar).flatMap { it.archiveFile }
+def sharedAdapterApiPackage =
+        'io/github/janguenter/bluemap/addon/adapter/api/bluemap523/'
+def sharedAdapterApiClasses = [
+        'BlueMapRuntimeCompatibility.class',
+        'RegistryGuard.class',
+        'ResourceExtensionType.class',
+        'SyntheticDispatch.class'
+].collect { sharedAdapterApiPackage + it }
+def sharedAdapterApiSources = [
+        'BlueMapRuntimeCompatibility.java',
+        'RegistryGuard.java',
+        'ResourceExtensionType.java',
+        'SyntheticDispatch.java'
+].collect { sharedAdapterApiPackage + it }
+def legacyLocalAdapterPackage =
+        'io/github/janguenter/bluemap/mekanism/adapter/bluemap522/'
+def forbiddenAssetPackages = [
+        'assets/mekanism/',
+        'assets/mekanismgenerators/',
+        'assets/mekanismcovers/',
+        'assets/mekmm/'
+]
+def displacedAdapterHelpers = [
+        'io/github/janguenter/bluemap/mekanism/adapter/bluemap523/AdapterCompatibility',
+        'io/github/janguenter/bluemap/mekanism/adapter/bluemap523/MekanismResourceExtensionType'
+]
+
+tasks.register('verifyGallery') {
+    inputs.dir('gallery/datapack')
+    doLast {
+        def required = [
+                'gallery/datapack/pack.mcmeta',
+                'gallery/datapack/data/mekanism_gallery/function/load.mcfunction',
+                'gallery/datapack/data/mekanism_gallery/function/build.mcfunction',
+                'gallery/datapack/data/mekanism_gallery/function/clear.mcfunction',
+                'gallery/datapack/data/mekanism_gallery/function/verify.mcfunction'
+        ]
+        def missing = required.findAll { !file(it).isFile() }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Mekanism gallery is incomplete: ${missing}")
+        }
+    }
+}
+
+tasks.register('verifyPinnedArtifacts', Exec) {
+    doFirst {
+        def arguments = [
+                'bluemap-addon-toolkit',
+                'artifacts',
+                'verify',
+                '--manifest',
+                'provenance/upstreams.json'
+        ]
+        artifactPins.each { pin ->
+            def value = providers.gradleProperty(pin.property)
+            if (!value.isPresent()) {
+                throw new GradleException(
+                        "Set -P${pin.property} to the exact ${pin.key} runtime JAR."
+                )
+            }
+            arguments.add('--artifact')
+            arguments.add("${pin.key}=${value.get()}")
+        }
+        commandLine arguments
+    }
+}
+
+tasks.register('verifyProductionJar') {
     dependsOn tasks.named('jar')
     inputs.file(productionJar)
-
     doLast {
-        def jarFile = inputs.files.singleFile
-        def expectedSize = providers.gradleProperty('accepted_jar_size').get().toLong()
-        def expectedSha256 = providers.gradleProperty('accepted_jar_sha256').get()
-        def actualSha256 = java.security.MessageDigest.getInstance('SHA-256')
-                .digest(jarFile.bytes)
-                .encodeHex()
-                .toString()
-
-        if (jarFile.length() != expectedSize) {
-            throw new GradleException(
-                    "Accepted production JAR size mismatch: "
-                            + "${jarFile.length()} != ${expectedSize}"
-            )
+        def zip = new java.util.zip.ZipFile(inputs.files.singleFile)
+        try {
+            def entries = zip.entries().findAll { !it.directory }.collect { it.name }
+            def required = [
+                    'bluemap.addon.json',
+                    'io/github/janguenter/bluemap/mekanism/BlueMapMekanismAddon.class',
+                    'META-INF/LICENSE-bluemap-mekanism-addon',
+                    'META-INF/NOTICE-bluemap-mekanism-addon.md',
+                    'META-INF/THIRD_PARTY-bluemap-mekanism-addon.md',
+                    'META-INF/bluemap-mekanism/upstreams.json'
+            ]
+            required.addAll(sharedAdapterApiClasses)
+            def missing = required.findAll { !entries.contains(it) }
+            def nonUniqueShared = sharedAdapterApiClasses.findAll { shared ->
+                entries.count { it == shared } != 1
+            }
+            def foreignClasses = entries.findAll { entry ->
+                entry.endsWith('.class')
+                        && !entry.startsWith('io/github/janguenter/bluemap/mekanism/')
+                        && !sharedAdapterApiClasses.contains(entry)
+            }
+            def forbidden = entries.findAll { entry ->
+                entry.endsWith('.jar')
+                        || entry == 'META-INF/neoforge.mods.toml'
+                        || entry == 'fabric.mod.json'
+                        || entry.endsWith('.mixins.json')
+                        || entry.startsWith('net/minecraft/')
+                        || entry.startsWith('net/neoforged/')
+                        || entry.startsWith('gallery/')
+                        || forbiddenAssetPackages.any { asset -> entry.startsWith(asset) }
+                        || entry.startsWith(legacyLocalAdapterPackage)
+                        || displacedAdapterHelpers.any { helper -> entry.startsWith(helper) }
+                        || (entry.startsWith(sharedAdapterApiPackage)
+                            && !sharedAdapterApiClasses.contains(entry))
+            }
+            if (!missing.isEmpty() || !nonUniqueShared.isEmpty()
+                    || !foreignClasses.isEmpty() || !forbidden.isEmpty()) {
+                throw new GradleException(
+                        "Production JAR boundary mismatch: missing=${missing}, "
+                                + "nonUnique=${nonUniqueShared}, "
+                                + "foreignClasses=${foreignClasses}, forbidden=${forbidden}"
+                )
+            }
+        } finally {
+            zip.close()
         }
-        if (actualSha256 != expectedSha256) {
-            throw new GradleException(
-                    "Accepted production JAR SHA-256 mismatch: "
-                            + "${actualSha256} != ${expectedSha256}"
-            )
+    }
+}
+
+tasks.register('verifySourcesJar') {
+    dependsOn tasks.named('sourcesJar')
+    inputs.file(publishedSourcesJar)
+    doLast {
+        def zip = new java.util.zip.ZipFile(inputs.files.singleFile)
+        try {
+            def entries = zip.entries().findAll { !it.directory }.collect { it.name }
+            def required = [
+                    'io/github/janguenter/bluemap/mekanism/BlueMapMekanismAddon.java',
+                    'bluemap.addon.json',
+                    'META-INF/LICENSE-bluemap-mekanism-addon',
+                    'META-INF/bluemap-mekanism/upstreams.json'
+            ]
+            required.addAll(sharedAdapterApiSources)
+            def missing = required.findAll { !entries.contains(it) }
+            def nonUniqueShared = sharedAdapterApiSources.findAll { shared ->
+                entries.count { it == shared } != 1
+            }
+            def projectJava = entries.findAll { it.endsWith('.java') }
+            def foreignJava = projectJava.findAll { entry ->
+                !entry.startsWith('io/github/janguenter/bluemap/mekanism/')
+                        && !sharedAdapterApiSources.contains(entry)
+            }
+            def forbidden = entries.findAll { entry ->
+                entry.endsWith('.class')
+                        || entry.endsWith('.jar')
+                        || entry == 'META-INF/neoforge.mods.toml'
+                        || entry == 'fabric.mod.json'
+                        || entry.endsWith('.mixins.json')
+                        || entry.startsWith('net/minecraft/')
+                        || entry.startsWith('net/neoforged/')
+                        || entry.startsWith('gallery/')
+                        || forbiddenAssetPackages.any { asset -> entry.startsWith(asset) }
+                        || entry.startsWith(legacyLocalAdapterPackage)
+                        || displacedAdapterHelpers.any { helper ->
+                            entry == "${helper}.java"
+                        }
+                        || (entry.startsWith(sharedAdapterApiPackage)
+                            && !sharedAdapterApiSources.contains(entry))
+            }
+            if (!missing.isEmpty() || !nonUniqueShared.isEmpty()
+                    || projectJava.isEmpty() || !foreignJava.isEmpty()
+                    || !forbidden.isEmpty()) {
+                throw new GradleException(
+                        "Sources JAR boundary mismatch: missing=${missing}, "
+                                + "nonUnique=${nonUniqueShared}, "
+                                + "foreignJava=${foreignJava}, forbidden=${forbidden}"
+                )
+            }
+        } finally {
+            zip.close()
         }
     }
 }
 
 tasks.named('check').configure {
+    dependsOn tasks.named('verifyProductionJar')
+    dependsOn tasks.named('verifySourcesJar')
+}
+
+tasks.register('prototypeCheck') {
+    dependsOn tasks.named('check')
+    dependsOn tasks.named('verifyPinnedArtifacts')
+    dependsOn tasks.named('verifyGallery')
+}
+
+def verifyAcceptedFile = { File candidate, String sizeProperty, String hashProperty ->
+    def expectedSize = providers.gradleProperty(sizeProperty).get().toLong()
+    def expectedSha256 = providers.gradleProperty(hashProperty).get()
+    if (expectedSize <= 0 || expectedSha256 == 'PENDING') {
+        throw new GradleException("Release identity ${sizeProperty}/${hashProperty} is unsealed")
+    }
+    def actualSha256 = java.security.MessageDigest.getInstance('SHA-256')
+            .digest(candidate.bytes).encodeHex().toString()
+    if (candidate.length() != expectedSize || actualSha256 != expectedSha256) {
+        throw new GradleException(
+                "Accepted artifact mismatch for ${candidate}: "
+                        + "${candidate.length()} bytes, SHA-256 ${actualSha256}"
+        )
+    }
+}
+
+tasks.register('verifyAcceptedProductionJar') {
+    dependsOn tasks.named('jar')
+    inputs.file(productionJar)
+    doLast {
+        verifyAcceptedFile(
+                inputs.files.singleFile,
+                'accepted_jar_size',
+                'accepted_jar_sha256'
+        )
+    }
+}
+
+tasks.register('verifyAcceptedSourcesJar') {
+    dependsOn tasks.named('sourcesJar')
+    inputs.file(publishedSourcesJar)
+    doLast {
+        verifyAcceptedFile(
+                inputs.files.singleFile,
+                'accepted_sources_jar_size',
+                'accepted_sources_jar_sha256'
+        )
+    }
+}
+
+tasks.register('verifyPublicationArtifacts') {
+    dependsOn tasks.named('generatePomFileForAddonPublication')
+    dependsOn tasks.named('generateMetadataFileForAddonPublication')
+    doLast {
+        verifyAcceptedFile(
+                file('build/publications/addon/pom-default.xml'),
+                'accepted_pom_size',
+                'accepted_pom_sha256'
+        )
+        verifyAcceptedFile(
+                file('build/publications/addon/module.json'),
+                'accepted_module_size',
+                'accepted_module_sha256'
+        )
+    }
+}
+
+tasks.register('verifyReleaseMetadata') {
+    doLast {
+        def expectedTag = "v${project.version}"
+        def requestedTag = providers.gradleProperty('releaseTag').getOrElse('')
+        def release = new groovy.json.JsonSlurper().parse(file('provenance/release.json'))
+        if (requestedTag != expectedTag
+                || release.status != 'owner-accepted-release-candidate'
+                || release.version != project.version.toString()
+                || release.tag != expectedTag
+                || !(release.owner_accepted_staging instanceof Map)
+                || release.owner_accepted_staging.visual_acceptance != true
+                || !(release.final_release_artifacts instanceof Map)) {
+            throw new GradleException('Release provenance is not sealed')
+        }
+    }
+}
+
+tasks.register('verifyReleaseCandidate') {
+    dependsOn tasks.named('prototypeCheck')
     dependsOn tasks.named('verifyAcceptedProductionJar')
+    dependsOn tasks.named('verifyAcceptedSourcesJar')
+    dependsOn tasks.named('verifyPublicationArtifacts')
+    dependsOn tasks.named('verifyReleaseMetadata')
 }
 
 publishing {
@@ -90,7 +409,7 @@ publishing {
             artifactId = artifact_id
             pom {
                 name = addon_name
-                description = 'Exact-profile BlueMap rendering for stable Mekanism-family appearance.'
+                description = 'Exact-profile BlueMap rendering for stable Mekanism block appearance.'
                 url = 'https://github.com/jan-guenter/bluemap-mekanism-addon'
                 licenses {
                     license {
