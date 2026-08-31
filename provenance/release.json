@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "status": "unpublished-migration-candidate",
+  "published": false,
+  "owner_acceptance": "required",
+  "version": "0.1.0-alpha.2",
+  "release_date": "2026-08-31",
+  "repository": "https://github.com/jan-guenter/bluemap-mekanism-addon",
+  "tag": "v0.1.0-alpha.2",
+  "maven_coordinate": "io.github.jan-guenter:bluemap-mekanism-addon:0.1.0-alpha.2",
+  "candidate_artifacts": {
+    "production_jar": {
+      "file_name": "bluemap-mekanism-addon-0.1.0-alpha.2.jar",
+      "size": 171503,
+      "sha256": "a0d7247be01fbfec51f2f5e39017b8f2d81796593636b710d0471ed64816f013"
+    },
+    "sources_jar": {
+      "file_name": "bluemap-mekanism-addon-0.1.0-alpha.2-sources.jar",
+      "size": 107285,
+      "sha256": "e48f17e5512a51f255065390e5797a1b126830395f9483b2a9e04fc4eeb79903"
+    },
+    "pom": {
+      "file_name": "bluemap-mekanism-addon-0.1.0-alpha.2.pom",
+      "size": 1347,
+      "sha256": "9c63ad04ac7e4e6c0723a7f3b30d8f1c5cb980506dbc8e8acc974b1e0f4875b6"
+    },
+    "gradle_module": {
+      "file_name": "bluemap-mekanism-addon-0.1.0-alpha.2.module.json",
+      "size": 2827,
+      "sha256": "81798ad696767966b423891b4e9c3a8f80a47058181ffc48088174b04ad4f134"
+    }
+  },
+  "baseline_release": {
+    "version": "0.1.0-alpha.1",
+    "tag": "v0.1.0-alpha.1",
+    "commit": "fd38ee958fa24795112fdd2ab91b9f3dfc36b29c",
+    "tree": "1ba0752982f1ed31ce9aab3cb7c7721ac7aafa04",
+    "production_jar_size": 78688,
+    "production_jar_sha256": "fc0b0144dcd3dd5ec24747961bd57960f5f00d699c7bb5dc67975739fb0d61c7",
+    "owner_visual_acceptance": true
+  },
+  "adapter_api_migration": {
+    "repository": "https://github.com/jan-guenter/bluemap-addon-adapter-api",
+    "version": "0.1.0-alpha.2",
+    "tag": "v0.1.0-alpha.2",
+    "release_target_commit": "e81f08bc4bfbf02d810ec8949a019130e2e61634",
+    "source_tree": "2f974c9bb2ba13888d69682f86f30f58922d30eb",
+    "target_bluemap_version": "5.22-feature.backport-5.23-stateless-java-web-server-46",
+    "bluemap_commit": "7e07f4e74ec1e92a6ead9aa1e66054af3e133aac",
+    "bluemap_api_commit": "285c9a60eff3ac2b0cab308ce1058d1565be0971",
+    "compiled_source_count": 4,
+    "standalone_module_jar_bundled": false,
+    "standalone_module_jar_nested": false,
+    "standalone_module_jar_installed": false,
+    "local_adapter_package": "io.github.janguenter.bluemap.mekanism.adapter.bluemap523",
+    "displaced_local_helpers": [
+      "AdapterCompatibility",
+      "MekanismResourceExtensionType",
+      "inline registry guard"
+    ]
+  },
+  "preserved_contract": {
+    "composite_model_count": 359,
+    "composite_block_count": 185,
+    "transmitter_topology": true,
+    "whole_block_covers": true,
+    "energy_cube_ports": true,
+    "connected_structural_reactor_and_focus_glass": true,
+    "gallery_sources_changed": false,
+    "renderer_behavior_changed": false,
+    "stock_fallback_changed": false,
+    "fast_changing_state_scope_changed": false
+  },
+  "verification": {
+    "exact_four_input_gate": true,
+    "production_archive_boundary_gate": true,
+    "sources_archive_boundary_gate": true,
+    "adapter_api_migration_boundary_gate": true,
+    "exact_feature_backport_runtime_identity_gate": true,
+    "gradle_9_6_1_clean_build": true,
+    "consumer_tests_passed": 2,
+    "gallery_integrity": true,
+    "gallery_zip_size": 10765,
+    "gallery_zip_sha256": "542bb260dc335cf35b7cd36d99cf0b5b836ced7a3be134eaf4d9068f2cc53668",
+    "checkstyle": true,
+    "actionlint": true
+  }
+}
